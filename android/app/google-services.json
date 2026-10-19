@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "859347809215",
+    "firebase_url": "https://seft-4ed07-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "seft-4ed07",
+    "storage_bucket": "seft-4ed07.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:859347809215:android:efb27813e843d6c38ca70a",
+        "android_client_info": {
+          "package_name": "com.seftedu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7DQ-B59L2TGo5EkT6fLu3EnolkZhDF8U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
