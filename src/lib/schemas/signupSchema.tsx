@@ -24,6 +24,7 @@ export const UserInfoSchema = z
     related_class: z.string().optional(),
     is_approved: z.boolean(),
     sef_branch: z.string(),
+    image_id: z.string(),
     email: z
       .string()
       .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, { message: 'ইমেইলটি সঠিক নয়!' }),

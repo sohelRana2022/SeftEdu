@@ -23,12 +23,15 @@ import {
   onValue,
 } from '@react-native-firebase/database';
 
+// ==================== Types ====================
+
 export type UserRole = 'adm' | 'tcr' | 'stn' | 'acn';
 
 export interface AppUser {
   user_id: string;
   user_name_bang: string;
   user_name_eng: string;
+  image_id: string;
   user_title: string;
   user_role: UserRole;
   contact: string;
@@ -37,7 +40,6 @@ export interface AppUser {
   sef_branch: string;
 }
 
-// Signup form-এর data
 export interface SignupInput {
   user_name_bang: string;
   user_name_eng: string;
@@ -46,6 +48,13 @@ export interface SignupInput {
   password: string;
   contact: string;
   sef_branch: string;
+  image_id: string;
+}
+
+export interface Branch {
+  id: string;
+  label: string;
+  value: string;
 }
 
 interface AuthContextType {
@@ -55,7 +64,14 @@ interface AuthContextType {
   signup: (input: SignupInput) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  getBranch: () => Promise<Branch[]>;
 }
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+// ==================== Context ====================
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -63,6 +79,8 @@ const auth = getAuth();
 const database = getDatabase();
 
 const validRoles: UserRole[] = ['adm', 'tcr', 'stn', 'acn'];
+
+// ==================== Helpers ====================
 
 function isApproved(value: unknown): boolean {
   return value === true || value === 1 || value === 'true';
@@ -77,6 +95,7 @@ function parseUserProfile(uid: string, data: any): AppUser {
     user_id: data.user_id ?? uid,
     user_name_bang: data.user_name_bang ?? '',
     user_name_eng: data.user_name_eng ?? '',
+    image_id: data.image_id ?? '',
     user_title: data.user_title ?? '',
     user_role: data.user_role as UserRole,
     contact: data.contact ?? '',
@@ -96,20 +115,19 @@ async function fetchUserProfile(uid: string): Promise<AppUser> {
   return parseUserProfile(uid, snapshot.val());
 }
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+// ==================== AuthContext Provider ====================
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Manual profile refresh
+  // Load user profile
   const loadUser = useCallback(async (uid: string) => {
     const profile = await fetchUserProfile(uid);
     setUser(profile);
   }, []);
 
+  // Refresh current user
   const refreshUser = useCallback(async () => {
     const currentUser = auth.currentUser;
 
@@ -121,13 +139,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await loadUser(currentUser.uid);
   }, [loadUser]);
 
-  // Auth change + Realtime Database live listener
+  // Firebase Auth state + realtime profile listener
   useEffect(() => {
     let active = true;
     let unsubscribeProfile: (() => void) | undefined;
 
     const unsubscribeAuth = onAuthStateChanged(auth, firebaseUser => {
-      // আগের user-এর listener বন্ধ করো
       unsubscribeProfile?.();
       unsubscribeProfile = undefined;
 
@@ -139,7 +156,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       setLoading(true);
 
-      // Database-এর পরিবর্তন স্বয়ংক্রিয়ভাবে শুনবে
       unsubscribeProfile = onValue(
         ref(database, `users/${firebaseUser.uid}`),
         snapshot => {
@@ -184,55 +200,89 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  // Login
+  // ==================== Login ====================
+
   const login = useCallback(
     async (email: string, password: string) => {
-      await signInWithEmailAndPassword(auth, email.trim(), password.trim());
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
 
-      const currentUser = auth.currentUser;
-
-      if (!currentUser) {
-        throw new Error('LOGIN_FAILED');
-      }
-
-      await loadUser(currentUser.uid);
+      await loadUser(credential.user.uid);
     },
     [loadUser],
   );
 
-  // Signup + create Realtime Database profile
-  const signup = useCallback(async (data: SignupInput) => {
+  // ==================== Signup ====================
+
+  const signup = useCallback(async (input: SignupInput) => {
     const credential = await createUserWithEmailAndPassword(
       auth,
-      data.email.trim(),
-      data.password.trim(),
+      input.email.trim(),
+      input.password,
     );
 
     const uid = credential.user.uid;
 
     const profile: AppUser = {
       user_id: uid,
-      user_name_bang: data.user_name_bang.trim(),
-      user_name_eng: data.user_name_eng.trim(),
-      user_title: data.user_title.trim(),
+      user_name_bang: input.user_name_bang.trim(),
+      user_name_eng: input.user_name_eng.trim(),
+      user_title: input.user_title.trim(),
       user_role: 'stn',
-      contact: data.contact.trim(),
-      email: data.email.trim(),
+      contact: input.contact.trim(),
+      email: input.email.trim(),
       is_approved: false,
-      sef_branch: data.sef_branch.trim(),
+      sef_branch: input.sef_branch.trim(),
+      image_id: input.image_id.trim(),
     };
 
-    await set(ref(database, `users/${uid}`), profile);
+    await set(ref(database, `users/${input.contact.trim()}`), profile);
 
-    // Listener-ও update করবে; এখানে তাৎক্ষণিক state update
     setUser(profile);
   }, []);
 
-  // Logout
+  // ==================== Logout ====================
+
   const logout = useCallback(async () => {
     await signOut(auth);
     setUser(null);
   }, []);
+
+  // ==================== Get Branches ====================
+
+  const getBranch = useCallback(async (): Promise<Branch[]> => {
+    const snapshot = await get(ref(database, 'sef_branches'));
+
+    if (!snapshot.exists()) {
+      return [];
+    }
+
+    const branches: Branch[] = [];
+
+    snapshot.forEach(childSnapshot => {
+      const data = childSnapshot.val();
+
+      // Ignore null or invalid branch records
+      if (
+        data &&
+        typeof data.label === 'string' &&
+        typeof data.value === 'string'
+      ) {
+        branches.push({
+          id: childSnapshot.key ?? data.value,
+          label: data.label,
+          value: data.value,
+        });
+      }
+    });
+
+    return branches;
+  }, []);
+
+  // ==================== Provider ====================
 
   return (
     <AuthContext.Provider
@@ -243,12 +293,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         signup,
         logout,
         refreshUser,
+        getBranch,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
+
+// ==================== Custom Hook ====================
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);

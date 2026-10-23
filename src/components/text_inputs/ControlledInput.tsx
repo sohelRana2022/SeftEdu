@@ -4,6 +4,8 @@ import { TextInput, HelperText } from 'react-native-paper';
 import { Controller, Control, FieldValues, Path } from 'react-hook-form';
 import { AntDesign as Icon } from '@react-native-vector-icons/ant-design';
 
+type IconName = React.ComponentProps<typeof Icon>['name'];
+
 type ControlledInputProps<TFieldValues extends FieldValues> = {
   control: Control<TFieldValues>;
   name: Path<TFieldValues>;
@@ -11,6 +13,7 @@ type ControlledInputProps<TFieldValues extends FieldValues> = {
   isPasswordField?: boolean;
   showPassword?: boolean;
   onTogglePasswordVisibility?: () => void;
+  leftIconName?: IconName | null;
 } & React.ComponentProps<typeof TextInput>;
 
 const ControlledInput = <TFieldValues extends FieldValues>({
@@ -20,9 +23,11 @@ const ControlledInput = <TFieldValues extends FieldValues>({
   isPasswordField = false,
   showPassword = false,
   onTogglePasswordVisibility,
+  leftIconName = null,
   ...TextInputProps
 }: ControlledInputProps<TFieldValues>) => {
   const [internalShowPassword, setInternalShowPassword] = React.useState(false);
+
   const passwordVisible = onTogglePasswordVisibility
     ? showPassword
     : internalShowPassword;
@@ -60,6 +65,15 @@ const ControlledInput = <TFieldValues extends FieldValues>({
                 ? !passwordVisible
                 : Boolean(TextInputProps.secureTextEntry)
             }
+            left={
+              leftIconName ? (
+                <TextInput.Icon
+                  icon={() => (
+                    <Icon name={leftIconName} size={20} color="#666" />
+                  )}
+                />
+              ) : undefined
+            }
             right={
               isPasswordField ? (
                 <TextInput.Icon
@@ -77,10 +91,18 @@ const ControlledInput = <TFieldValues extends FieldValues>({
               ) : undefined
             }
           />
+
           {invalid && error?.message ? (
             <View style={styles.errorContainer}>
               <Icon name="warning" color="red" size={15} />
-              <HelperText type="error" visible={invalid}>
+              <HelperText
+                type="error"
+                visible={invalid}
+                style={{
+                  fontFamily: 'HindSiliguri-SemiBold',
+                  color: '#989898',
+                }}
+              >
                 {error.message}
               </HelperText>
             </View>

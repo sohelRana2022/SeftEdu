@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Text, Button, Card, Snackbar } from 'react-native-paper';
+import { Text, Button, Card, Snackbar, useTheme } from 'react-native-paper';
 import { useAuth } from '../../../contexts/AuthContext';
 import type { RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -12,6 +12,7 @@ import {
   LoginInfoSchema,
 } from '../../../lib/schemas/loginSchema';
 import Loading from '../../../components/loaders/Loading';
+import getLoginErrorMessage from '../../../lib/helpers/authError';
 
 interface LoginScreenProps {
   navigation: StackNavigationProp<any, any>;
@@ -20,162 +21,118 @@ interface LoginScreenProps {
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [statusMsg, setStatusMsg] = useState('');
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [loader, setLoader] = useState(false);
+  const theme = useTheme();
   const { login } = useAuth();
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginInfoType>({
+  const { control, handleSubmit } = useForm<LoginInfoType>({
     resolver: zodResolver(LoginInfoSchema),
   });
 
   const signin = async (data: LoginInfoType) => {
     const { email, password } = data;
-    console.log(email);
-    // try {
-    //   await login('sinha26@gmail.com', 'Sinha@26');
-    //   console.log('Login Successful!');
-    // } catch (error) {
-    //   console.log(error);
-    // }
+
+    setLoader(true);
+    setStatusMsg('');
+    setSnackbarVisible(false);
+
+    try {
+      await login(email.trim(), password);
+
+      console.log('Login Successful!');
+    } catch (error: unknown) {
+      console.log('Login Error:', error);
+
+      const errorMsg = getLoginErrorMessage(error as any);
+
+      setStatusMsg(errorMsg);
+      setSnackbarVisible(true);
+    } finally {
+      setLoader(false);
+    }
   };
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: '#f0f0f0',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
+    <View style={styles.container}>
       {loader && (
         <View style={styles.loaderOverlay}>
           <Loading />
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: 'HindSiliguri-Regular',
-              color: '#FFF',
-              paddingTop: 20,
-            }}
-          >
-            অপেক্ষা করুন .....!
-          </Text>
+          <Text style={styles.loadingText}>অপেক্ষা করুন .....!</Text>
         </View>
       )}
 
-      {statusMsg !== '' && (
-        <View style={styles.snackbarWrapper}>
+      <Card style={styles.card}>
+        <View style={styles.header}>
+          <Image
+            source={require('../../../assets/images/logo.png')}
+            resizeMode="contain"
+            style={styles.logo}
+          />
+
+          <Text style={styles.title}>ইউজার লগিন</Text>
+
           <Snackbar
-            visible
-            onDismiss={() => setStatusMsg('')}
+            visible={snackbarVisible}
+            onDismiss={() => setSnackbarVisible(false)}
             duration={6000}
             style={styles.snackbar}
           >
-            <Text style={{ color: 'red', fontFamily: 'HindSiliguri-Regular' }}>
-              {statusMsg}
-            </Text>
+            <Text style={styles.snackbarText}>{statusMsg}</Text>
           </Snackbar>
         </View>
-      )}
-      <Card style={{ width: '80%', maxWidth: 400, paddingVertical: 30 }}>
-        <View
-          style={{
-            alignItems: 'center',
-            marginVertical: 5,
-            borderBottomWidth: 2,
-            borderBottomColor: '#666',
-          }}
-        >
-          <Image
-            source={require('../../../assets/images/logo.png')}
-            resizeMode={'contain'}
-            style={{ width: 80, height: 80 }}
-          />
-          <Text
-            style={{
-              color: '#111827',
-              fontFamily: 'HindSiliguri-SemiBold',
-              fontSize: 24,
-              marginTop: 8,
-            }}
-          >
-            ইউজার লগিন
-          </Text>
-        </View>
-        <Card.Content style={{ gap: 5 }}>
+
+        <Card.Content style={styles.content}>
           <ControlledInput
+            mode="outlined"
             control={control}
-            name={'email'}
-            placeholder={''}
-            label={'ইমেইল'}
+            name="email"
+            placeholder=""
+            label="ইমেইল"
+            leftIconName="mail"
             style={{
-              backgroundColor: '#FFF',
               fontFamily: 'HindSiliguri-SemiBold',
+              backgroundColor: theme.colors.surface,
             }}
           />
 
           <ControlledInput
+            mode="outlined"
             control={control}
-            name={'password'}
+            name="password"
             isPasswordField={true}
-            placeholder={''}
-            label={'পাসওয়ার্ড'}
+            placeholder=""
+            leftIconName="lock"
+            label="পাসওয়ার্ড"
             secureTextEntry={true}
             style={{
-              backgroundColor: '#FFF',
               fontFamily: 'HindSiliguri-SemiBold',
+              backgroundColor: theme.colors.surface,
             }}
           />
         </Card.Content>
-        <View
-          style={{
-            flexDirection: 'row',
-            gap: 10,
-            justifyContent: 'space-between',
-            marginTop: 20,
-            paddingHorizontal: 15,
-          }}
-        >
+
+        <View style={styles.buttonContainer}>
           <Button
-            style={{ flex: 1 }}
+            style={styles.loginButton}
             onPress={() => handleSubmit(signin)()}
-            mode={'contained'}
+            mode="contained"
+            loading={loader}
+            disabled={loader}
+            labelStyle={styles.buttonLabel}
           >
             লগিন
           </Button>
         </View>
 
-        <View
-          style={{
-            flexDirection: 'row',
-            gap: 10,
-            justifyContent: 'center',
-            paddingTop: 35,
-          }}
-        >
-          <Text
-            style={{
-              color: '#111827',
-              fontFamily: 'HindSiliguri-Regular',
-            }}
+        <View style={styles.signupContainer}>
+          <Text style={styles.signupText}>কোনো একাউন্ট নেই?</Text>
+
+          <TouchableOpacity
+            disabled={loader}
+            onPress={() => navigation.navigate('Signup')}
           >
-            কোনো একাউন্ট নেই?
-          </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-            <Text
-              style={{
-                color: '#111827',
-                fontFamily: 'HindSiliguri-Bold',
-                borderColor: '#6B7280',
-                borderBottomWidth: 1,
-              }}
-            >
-              এখানে ক্লিক করুন!
-            </Text>
+            <Text style={styles.signupLink}>এখানে ক্লিক করুন!</Text>
           </TouchableOpacity>
         </View>
       </Card>
@@ -184,22 +141,91 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 };
 
 export default LoginScreen;
+
 const styles = StyleSheet.create({
-  snackbarWrapper: {
-    position: 'absolute',
-    top: '20%',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
-    zIndex: 1000,
+    alignItems: 'center',
   },
-  snackbar: {
+
+  card: {
     width: '80%',
-    borderRadius: 8,
-    alignSelf: 'center',
-    backgroundColor: '#fff',
+    maxWidth: 400,
+    paddingVertical: 30,
   },
+
+  header: {
+    alignItems: 'center',
+    marginVertical: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: '#666',
+    marginHorizontal: 20,
+  },
+
+  logo: {
+    width: 60,
+    height: 60,
+  },
+
+  title: {
+    color: '#111827',
+    fontFamily: 'HindSiliguri-SemiBold',
+    fontSize: 24,
+    marginTop: 8,
+  },
+
+  content: {
+    gap: 5,
+  },
+
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+
+  loginButton: {
+    flex: 1,
+  },
+
+  buttonLabel: {
+    fontFamily: 'HindSiliguri-SemiBold',
+    fontSize: 16,
+  },
+
+  signupContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    paddingTop: 35,
+  },
+
+  signupText: {
+    color: '#111827',
+    fontFamily: 'HindSiliguri-Regular',
+  },
+
+  signupLink: {
+    color: '#111827',
+    fontFamily: 'HindSiliguri-Bold',
+    borderColor: '#6B7280',
+    borderBottomWidth: 1,
+  },
+
+  snackbar: {
+    backgroundColor: '#fff',
+    marginBottom: 10,
+  },
+
+  snackbarText: {
+    color: '#b91c1c',
+    fontFamily: 'HindSiliguri-Regular',
+  },
+
   loaderOverlay: {
     position: 'absolute',
     top: 0,
@@ -210,5 +236,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     zIndex: 100,
+  },
+
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'HindSiliguri-Regular',
+    color: '#FFF',
+    paddingTop: 20,
   },
 });

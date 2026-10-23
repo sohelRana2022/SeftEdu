@@ -1,11 +1,10 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    padding: 20,
   },
   card: {
     width: '100%',
@@ -17,13 +16,13 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 12,
     color: '#4527A0',
-    fontFamily:'HindSiliguri-Regular'
+    fontFamily: 'HindSiliguri-Regular',
   },
   description: {
     textAlign: 'center',
     marginBottom: 20,
     color: '#616161',
-    fontFamily:'HindSiliguri-Regular'
+    fontFamily: 'HindSiliguri-Regular',
   },
   button: {
     marginTop: 12,
